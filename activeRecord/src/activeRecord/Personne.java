@@ -1,26 +1,115 @@
 package activeRecord;
 
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Personne {
     private int id;
     private String nom;
     private String prenom;
 
-
-    public Personne(String n, String p) {
+    public Personne(String n, String p) throws SQLException {
         this.id = -1;
         this.nom = n;
         this.prenom = p;
     }
 
-    // creation de la table Personne
-    {
-        String createString = "CREATE TABLE Personne ( " + "ID INTEGER  AUTO_INCREMENT, "
-                + "NOM varchar(40) NOT NULL, " + "PRENOM varchar(40) NOT NULL, " + "PRIMARY KEY (ID))";
-        Statement stmt = connect.createStatement();
-        stmt.executeUpdate(createString);
-        System.out.println("1) creation table Personne\n");
+    public static List<Personne> findAll() throws SQLException {
+        Statement stmt = DBConnection.getConnection().createStatement();
+        ResultSet rs = stmt.executeQuery("SELECT * FROM Personne;");
+        // s'il y a un resultat
+        List<Personne> listP = new ArrayList<Personne>();
+        while (rs.next()) {
+            String nom = rs.getString("nom");
+            String prenom = rs.getString("prenom");
+            int idPersonne = rs.getInt("id");
+            Personne p = new Personne(nom,prenom);
+            p.id = idPersonne;
+            listP.add(p);
+        }
+        return listP;
+    }
+
+    public static Personne findById(int id) throws SQLException {
+        String SQLPrep = "SELECT * FROM Personne WHERE id = (?);";
+        PreparedStatement prep1 = (DBConnection.getConnection()).prepareStatement(SQLPrep);
+        prep1.setInt(1,id);
+        prep1.execute();
+        ResultSet rs = prep1.getResultSet();
+        // s'il y a un resultat
+        Personne p;
+        if(rs.next()) {
+            String nom = rs.getString("nom");
+            String prenom = rs.getString("prenom");
+            int idPersonne = rs.getInt("id");
+            p = new Personne(nom,prenom);
+            p.id = idPersonne;
+        } else {
+            p = null;
+        }
+        return p;
+    }
+
+    public static Personne findByName(String name) throws SQLException {
+        String SQLPrep = "SELECT * FROM Personne WHERE nom LIKE ?;";
+        PreparedStatement prep1 = (DBConnection.getConnection()).prepareStatement(SQLPrep);
+        prep1.setString(1,name);
+        prep1.execute();
+        ResultSet rs = prep1.getResultSet();
+        // s'il y a un resultat
+        Personne p;
+        if(rs.next()) {
+            String nom = rs.getString("nom");
+            String prenom = rs.getString("prenom");
+            int idPersonne = rs.getInt("id");
+            p = new Personne(nom,prenom);
+            p.id = idPersonne;
+        } else {
+            p = null;
+        }
+        return p;
+    }
+
+    public static void createTable() throws SQLException {
+        String SQLPrep = "CREATE TABLE Personne (ID INTEGER  AUTO_INCREMENT, NOM varchar(40) NOT NULL, PRENOM varchar(40) NOT NULL, PRIMARY KEY (ID));";
+        Statement stmt = (DBConnection.getConnection()).createStatement();
+        stmt.executeUpdate(SQLPrep);
+    }
+
+    public static void deleteTable() throws SQLException {
+        String drop = "DROP TABLE Personne;";
+        Statement stmt = (DBConnection.getConnection()).createStatement();
+        stmt.executeUpdate(drop);
+    }
+
+    public void save() throws SQLException {
+        if(this.id == -1){
+            saveNew();
+        }  else {
+            update();
+        }
+    }
+
+    private void saveNew() throws SQLException {
+        String SQLPrep = "INSERT INTO Personne (nom, prenom) VALUES (?,?);";
+        PreparedStatement prep = (DBConnection.getConnection()).prepareStatement(SQLPrep, Statement.RETURN_GENERATED_KEYS);
+        prep.setString(1,this.nom);
+        prep.setString(2,this.prenom);
+        prep.executeUpdate();
+        ResultSet generatedKeys = prep.getGeneratedKeys();
+        if (generatedKeys.next()) {
+            this.id = generatedKeys.getInt(1);
+        }
+    }
+
+    private void update() throws SQLException {
+        String SQLprep = "update Personne set nom=?, prenom=? where id=?;";
+        PreparedStatement prep = (DBConnection.getConnection()).prepareStatement(SQLprep);
+        prep.setString(1, this.nom);
+        prep.setString(2, this.prenom);
+        prep.setInt(3, this.id);
+        prep.execute();
     }
 
     public void addPersonne() throws SQLException {
@@ -43,71 +132,23 @@ public class Personne {
         System.out.println(autoInc);
         System.out.println();
     }
-
-    public static void findAllPersonne() throws SQLException {
-        Connection connect = DBConnection.getConnection();
-        System.out.println("4) Recupere les personnes de la table Personne");
-        String SQLPrep = "SELECT * FROM Personne;";
-        PreparedStatement prep1 = connect.prepareStatement(SQLPrep);
+    public void delete() throws SQLException {
+        String SQLPrep = "DELETE * FROM Personne WHERE id = (?);";
+        PreparedStatement prep1 = (DBConnection.getConnection()).prepareStatement(SQLPrep);
+        prep1.setInt(1,this.id);
         prep1.execute();
-        ResultSet rs = prep1.getResultSet();
-        // s'il y a un resultat
-        while (rs.next()) {
-            String nom = rs.getString("nom");
-            String prenom = rs.getString("prenom");
-            int id = rs.getInt("id");
-            System.out.println("  -> (" + id + ") " + nom + ", " + prenom);
-        }
-        System.out.println();
+        this.id = -1;
     }
 
-    public void removePersonneById(int id) throws SQLException {
-        Connection connect = DBConnection.getConnection();
-        PreparedStatement prep = connect.prepareStatement("DELETE FROM Personne WHERE id=?");
-        prep.setInt(1, id);
-        prep.execute();
-        System.out.println("5) Suppression personne id 1 (Spielberg)");
-        System.out.println();
+    public int getId() {
+        return id;
     }
 
-    // recuperation de la seconde personne + affichage
-    {
-        System.out.println("6) Recupere personne d'id 2");
-        String SQLPrep = "SELECT * FROM Personne WHERE id=?;";
-        PreparedStatement prep1 = connect.prepareStatement(SQLPrep);
-        prep1.setInt(1, 2);
-        prep1.execute();
-        ResultSet rs = prep1.getResultSet();
-        // s'il y a un resultat
-        if (rs.next()) {
-            String nom = rs.getString("nom");
-            String prenom = rs.getString("prenom");
-            int id = rs.getInt("id");
-            System.out.println("  -> (" + id + ") " + nom + ", " + prenom);
-        }
-        System.out.println();
+    public String getNom() {
+        return nom;
     }
 
-    // met a jour personne 2
-    public void update(int i, String nom, String prenom) throws SQLException {
-        Connection connect = DBConnection.getConnection();
-        String SQLprep = "update Personne set nom=?, prenom=? where id=?;";
-        PreparedStatement prep = connect.prepareStatement(SQLprep);
-        prep.setString(1, nom);
-        prep.setString(2, prenom);
-        prep.setInt(3, 2);
-        prep.execute();
-        System.out.println("7) Effectue modification Personne id 2");
-        System.out.println();
+    public String getPrenom() {
+        return prenom;
     }
-
-
-    // suppression de la table personne
-    {
-        String drop = "DROP TABLE Personne";
-        Statement stmt = connect.createStatement();
-        stmt.executeUpdate(drop);
-        System.out.println("9) Supprime table Personne");
-    }
-
 }
